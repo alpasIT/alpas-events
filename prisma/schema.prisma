@@ -1,0 +1,474 @@
+// ============================================================
+// Prisma Schema — Guest Registration Web Application v1.1
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgres"
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum AdminRole {
+  SUPER_ADMIN       // Full access including manual overrides
+  EVENT_COORDINATOR // Manage guests, send invitations
+  VIEWER            // Read-only dashboard access
+  STAFF             // Day-of check-in only
+}
+
+enum InvitationMethod {
+  EMAIL
+  QR_CODE
+  BOTH
+}
+
+enum RsvpStatus {
+  SENT        // Invitation dispatched, no response yet
+  ACCEPTED
+  DECLINED
+  PENDING     // Sent but no action taken
+  EXPIRED     // Past RSVP deadline, no response
+}
+
+enum AttendanceStatus {
+  NOT_YET              // Default before event day
+  CONFIRMED_PRESENT    // Physically attended
+  WALK_IN_OVERRIDE     // Attended despite declining; original RSVP preserved
+  UNREGISTERED_WALK_IN // Attended without any prior RSVP response
+  NO_SHOW              // Accepted but did not attend
+  EXCUSED_ABSENCE      // Accepted but informed admin of absence on the day
+}
+
+enum GuestCategory {
+  VIP
+  MEDIA
+  SPONSOR
+  SPEAKER
+  GENERAL
+}
+
+enum Salutation {
+  MR
+  MS
+  MRS
+  DR
+  ENGR
+  ATTY
+  PROF
+}
+
+enum EmailNotificationType {
+  INVITATION_SENT
+  ACCEPTANCE_CONFIRMATION_GUEST
+  ACCEPTANCE_ALERT_ADMIN
+  DECLINE_ACKNOWLEDGMENT_GUEST
+  DECLINE_ALERT_ADMIN
+  INVITATION_RESENT
+  RSVP_DEADLINE_REMINDER
+  POST_EVENT_THANK_YOU
+}
+
+enum ActivityType {
+  INVITATION_SENT
+  INVITATION_RESENT
+  EMAIL_OPENED
+  LINK_CLICKED
+  QR_SCANNED
+  RSVP_ACCEPTED
+  RSVP_DECLINED
+  GUEST_CREATED
+  GUEST_UPDATED
+  RSVP_STATUS_OVERRIDDEN
+  ATTENDANCE_MARKED
+  ATTENDANCE_OVERRIDDEN
+  ATTENDANCE_UNDONE
+  BULK_IMPORT
+}
+
+enum EmailTemplateType {
+  INVITATION
+  ACCEPTANCE_CONFIRMATION
+  DECLINE_ACKNOWLEDGMENT
+  REMINDER
+  THANK_YOU
+}
+
+// ============================================================
+// EVENT
+// ============================================================
+
+model Event {
+  id            String    @id @default(cuid())
+  name          String    @db.VarChar(150)
+  date          DateTime  // The calendar date of the event
+  startTime     DateTime  // Full datetime with timezone
+  endTime       DateTime?
+  venue         String    @db.VarChar(250)
+  timezone      String    @default("Asia/Manila")
+  rsvpDeadline  DateTime
+
+  // RSVP form options
+  enablePlusOne           Boolean   @default(false)
+  enableDietaryPreference Boolean   @default(false)
+
+  // Module auto-unlock override
+  attendanceUnlockedAt DateTime? // Set by Super Admin for early unlock
+  attendanceLockedAt   DateTime? // When module becomes read-only (48h after endTime)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  guests         Guest[]
+  invitations    Invitation[]
+  emailTemplates EmailTemplate[]
+  activityLogs   ActivityLog[]
+  adminUsers     AdminUser[]     @relation("EventAdmins")
+  tables         SeatingTable[]
+
+  @@map("events")
+}
+
+// ============================================================
+// ADMIN USERS
+// ============================================================
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique @db.VarChar(255)
+  name         String    @db.VarChar(100)
+  passwordHash String
+  role         AdminRole @default(EVENT_COORDINATOR)
+  mfaEnabled   Boolean   @default(false)
+  mfaSecret    String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  lastLogin DateTime?
+
+  events              Event[]              @relation("EventAdmins")
+  activityLogs        ActivityLog[]
+  guestEdits          GuestChangeHistory[]
+  attendanceOverrides AttendanceOverride[]
+  rsvpOverrides       RsvpOverride[]
+
+  @@map("admin_users")
+}
+
+// ============================================================
+// GUEST
+// ============================================================
+
+model Guest {
+  id          String         @id @default(cuid())
+  eventId     String
+  event       Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  // Required fields
+  fullName    String         @db.VarChar(100)
+  designation String         @db.VarChar(80)
+  company     String         @db.VarChar(120)
+  mobile      String         @db.VarChar(30)
+  email       String         @db.VarChar(255)
+
+  // Optional fields
+  salutation          Salutation?
+  dietaryPreference   String?      @db.VarChar(255)
+  internalNotes       String?      @db.Text
+  category            GuestCategory @default(GENERAL)
+
+  // RSVP state
+  rsvpStatus          RsvpStatus        @default(PENDING)
+  rsvpRespondedAt     DateTime?
+  declineReason       String?           @db.VarChar(500)
+
+  // Attendance state
+  attendanceStatus    AttendanceStatus  @default(NOT_YET)
+  attendanceMarkedAt  DateTime?
+
+  // Invitation tracking
+  invitationMethod    InvitationMethod  @default(EMAIL)
+  qrToken             String?           @unique // Unique per-guest QR token
+
+  // Seating assignment (via Seat)
+  seatId              String?   @unique
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  invitations         Invitation[]
+  changeHistory       GuestChangeHistory[]
+  activityLogs        ActivityLog[]
+  attendanceOverrides AttendanceOverride[]
+  rsvpOverrides       RsvpOverride[]
+  emailLogs           EmailLog[]
+  plusOnes            PlusOne[]
+  seat                Seat?     @relation(fields: [seatId], references: [id], onDelete: SetNull)
+
+  @@unique([eventId, email])
+  @@map("guests")
+}
+
+// ============================================================
+// PLUS ONE
+// ============================================================
+
+model PlusOne {
+  id          String    @id @default(cuid())
+  guestId     String
+  guest       Guest     @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  name        String    @db.VarChar(100)
+  checkedIn   Boolean   @default(false)
+  checkedInAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@map("plus_ones")
+}
+
+// ============================================================
+// INVITATION
+// ============================================================
+
+model Invitation {
+  id              String           @id @default(cuid())
+  eventId         String
+  event           Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  guestId         String
+  guest           Guest            @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  method          InvitationMethod
+  token           String           @unique // Tokenized URL for accept/decline actions
+  tokenExpiresAt  DateTime?
+
+  sentAt          DateTime?
+  openedAt        DateTime?       // First open tracked
+  clickedAt       DateTime?       // First link click tracked
+
+  // Scheduling
+  scheduledAt     DateTime?       // For scheduled batch sends
+  deliveredAt     DateTime?
+  failedAt        DateTime?
+  failureReason   String?         @db.Text
+
+  // Resend tracking
+  resendCount     Int             @default(0)
+  lastResentAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("invitations")
+}
+
+// ============================================================
+// EMAIL TEMPLATES
+// ============================================================
+
+model EmailTemplate {
+  id          String            @id @default(cuid())
+  eventId     String
+  event       Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  name        String            @db.VarChar(100) // e.g. "VIP Invite", "General Invite"
+  type        EmailTemplateType
+  subject     String            @db.VarChar(255)
+  htmlBody    String?           @db.Text   // Auto-generated from plainBody + imageUrls when null
+  plainBody   String            @db.Text   // Primary body content
+  imageUrls   String[]          @default([])
+
+  // Email delivery settings
+  senderName  String            @db.VarChar(100)
+  replyTo     String            @db.VarChar(255)
+
+  isDefault   Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("email_templates")
+}
+
+// ============================================================
+// EMAIL LOG
+// ============================================================
+
+model EmailLog {
+  id          String                @id @default(cuid())
+  guestId     String
+  guest       Guest                 @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  type        EmailNotificationType
+  recipient   String                @db.VarChar(255)
+  subject     String                @db.VarChar(255)
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  openedAt    DateTime?
+  failedAt    DateTime?
+  errorMsg    String?               @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@map("email_logs")
+}
+
+// ============================================================
+// GUEST CHANGE HISTORY (Audit)
+// ============================================================
+
+model GuestChangeHistory {
+  id          String    @id @default(cuid())
+  guestId     String
+  guest       Guest     @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  adminId     String
+  admin       AdminUser @relation(fields: [adminId], references: [id])
+
+  fieldName   String    @db.VarChar(100) // e.g. "email", "designation"
+  oldValue    String?   @db.Text
+  newValue    String?   @db.Text
+  changeNote  String?   @db.VarChar(300) // Mandatory when RSVP status is manually changed
+
+  changedAt   DateTime  @default(now())
+
+  @@map("guest_change_history")
+}
+
+// ============================================================
+// RSVP OVERRIDE (Admin manually updates RSVP status)
+// ============================================================
+
+model RsvpOverride {
+  id          String     @id @default(cuid())
+  guestId     String
+  guest       Guest      @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  adminId     String
+  admin       AdminUser  @relation(fields: [adminId], references: [id])
+
+  fromStatus  RsvpStatus
+  toStatus    RsvpStatus
+  reason      String     @db.VarChar(300) // Mandatory
+
+  createdAt   DateTime   @default(now())
+
+  @@map("rsvp_overrides")
+}
+
+// ============================================================
+// ATTENDANCE OVERRIDE (Day-of)
+// ============================================================
+
+model AttendanceOverride {
+  id          String           @id @default(cuid())
+  guestId     String
+  guest       Guest            @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  adminId     String
+  admin       AdminUser        @relation(fields: [adminId], references: [id])
+
+  fromStatus  AttendanceStatus
+  toStatus    AttendanceStatus
+  staffNote   String?          @db.VarChar(300) // Required for walk-in overrides
+  reason      String?          @db.VarChar(300) // Required for manual Super Admin changes
+
+  createdAt   DateTime         @default(now())
+
+  @@map("attendance_overrides")
+}
+
+// ============================================================
+// ACTIVITY LOG (Chronological feed)
+// ============================================================
+
+model ActivityLog {
+  id          String       @id @default(cuid())
+  eventId     String
+  event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  type        ActivityType
+  description String       @db.Text
+
+  // Optional associations
+  guestId     String?
+  guest       Guest?       @relation(fields: [guestId], references: [id], onDelete: SetNull)
+  adminId     String?
+  admin       AdminUser?   @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  metadata    Json?        // Extra context (e.g. IP address, device, field changes)
+
+  createdAt   DateTime     @default(now())
+
+  @@index([eventId, createdAt])
+  @@map("activity_logs")
+}
+
+// ============================================================
+// BULK IMPORT JOB
+// ============================================================
+
+model BulkImportJob {
+  id            String   @id @default(cuid())
+  eventId       String
+  fileName      String   @db.VarChar(255)
+
+  totalRows     Int
+  successCount  Int      @default(0)
+  errorCount    Int      @default(0)
+  errorDetails  Json?    // Array of {row, field, message}
+
+  status        String   @default("PENDING") // PENDING | PROCESSING | DONE | FAILED
+  processedAt   DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("bulk_import_jobs")
+}
+
+// ============================================================
+// SEATING (optional feature)
+// ============================================================
+
+model SeatingTable {
+  id        String  @id @default(cuid())
+  eventId   String
+  event     Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  label     String  @db.VarChar(50)  // e.g. "Table 1", "VIP Table A"
+  capacity  Int
+
+  seats     Seat[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("seating_tables")
+}
+
+model Seat {
+  id         String       @id @default(cuid())
+  tableId    String
+  table      SeatingTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  seatNumber Int
+  guest      Guest?
+
+  assignedAt DateTime?
+
+  @@map("seats")
+}
+
+// ============================================================
+// WAITLIST (optional feature)
+// ============================================================
+
+model Waitlist {
+  id        String   @id @default(cuid())
+  eventId   String
+  guestId   String   @unique
+  position  Int      // Queue order
+  promotedAt DateTime? // Set when moved from waitlist to accepted
+
+  createdAt DateTime @default(now())
+
+  @@map("waitlist")
+}
