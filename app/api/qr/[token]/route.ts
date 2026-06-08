@@ -14,7 +14,7 @@ export async function GET(_: NextRequest, { params }: Params) {
 
   const buffer = await generateQRCodeBuffer(buildCheckInUrl(token));
 
-  return new NextResponse(buffer, {
+  return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "image/png",
       "Cache-Control": "public, max-age=31536000, immutable",
