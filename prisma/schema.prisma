@@ -140,6 +140,7 @@ model Event {
 
 model AdminUser {
   id           String    @id @default(cuid())
+  supabaseId   String?   @unique @db.Uuid
   email        String    @unique @db.VarChar(255)
   name         String    @db.VarChar(100)
   passwordHash String

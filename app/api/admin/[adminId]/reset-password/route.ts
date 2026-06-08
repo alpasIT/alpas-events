@@ -41,6 +41,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     const targetAdmin = await prisma.adminUser.findUnique({
       where: { id: adminId },
+      select: { supabaseId: true, email: true },
     });
 
     if (!targetAdmin) {
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     // Hash the new password for database storage
     const passwordHash = await bcrypt.hash(parsed.data.newPassword, 10);
 
-    // Update password in Supabase Auth using admin API
+    // Update password in Supabase Auth using the stored Supabase ID
     const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (!serviceRole || !supabaseUrl) {
@@ -61,24 +62,9 @@ export async function POST(request: NextRequest, { params }: Params) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Get the Supabase user by email
-    const { data: { users }, error: lookupError } = await adminSupabase.auth.admin.listUsers();
-    if (lookupError) {
-      console.error("Failed to list Supabase users:", lookupError);
-      return NextResponse.json(
-        { error: "Failed to update authentication password" },
-        { status: 500 }
-      );
-    }
-
-    const supabaseUser = users.find(u => u.email === targetAdmin.email);
-    if (!supabaseUser) {
-      return NextResponse.json({ error: "User not found in auth system" }, { status: 404 });
-    }
-
     // Update password in Supabase Auth
     const { error: updateError } = await adminSupabase.auth.admin.updateUserById(
-      supabaseUser.id,
+      targetAdmin.supabaseId,
       { password: parsed.data.newPassword }
     );
 

@@ -67,7 +67,13 @@ export async function POST(request: NextRequest) {
 
     // passwordHash is managed by Supabase Auth; store a sentinel value in Prisma
     const admin = await prisma.adminUser.create({
-      data: { name, email, role, passwordHash: "supabase_auth" },
+      data: { 
+        supabaseId: authData.user.id,
+        name, 
+        email, 
+        role, 
+        passwordHash: "supabase_auth" 
+      },
     });
 
     return NextResponse.json(admin, { status: 201 });
