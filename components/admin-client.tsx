@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Plus, Trash2, Edit } from "lucide-react";
+import { Plus, Trash2, Key, RotateCcw } from "lucide-react";
 import { adminUserSchema, type AdminUserInput } from "@/lib/validations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,6 +108,38 @@ export function AdminClient({ admins, currentUserEmail }: AdminClientProps) {
     }
   }
 
+  async function handleResetPassword(adminId: string, adminEmail: string) {
+    const newPassword = prompt(`Enter new password for ${adminEmail}:\n\n(Must be at least 8 characters)`);
+    if (!newPassword) return;
+
+    if (newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/${adminId}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword, adminEmail }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? "Failed to reset password");
+      }
+
+      toast.success(`Password reset for ${adminEmail}`);
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to reset password");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+
   return (
     <div className="space-y-4">
       <Button onClick={() => { reset(); setOpen(true); }}>
@@ -139,16 +171,27 @@ export function AdminClient({ admins, currentUserEmail }: AdminClientProps) {
                 <TableCell className="text-xs text-muted-foreground">
                   {admin.lastLogin ? formatTimeAgo(admin.lastLogin) : "Never"}
                 </TableCell>
-                <TableCell>
+                <TableCell className="flex gap-1">
                   {admin.email !== currentUserEmail && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive"
-                      onClick={() => handleDelete(admin.id, admin.email)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title="Reset password"
+                        onClick={() => handleResetPassword(admin.id, admin.email)}
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive"
+                        onClick={() => handleDelete(admin.id, admin.email)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
                   )}
                 </TableCell>
               </TableRow>
