@@ -35,7 +35,7 @@ export default async function DashboardPage() {
       take: 10,
       orderBy: { createdAt: "desc" },
       include: {
-        guest: { select: { fullName: true } },
+        guest: true,
         event: { select: { name: true } },
       },
     }),
