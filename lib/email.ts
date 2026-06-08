@@ -1,7 +1,9 @@
 import { Resend } from "resend";
 import { interpolateTemplate } from "./utils";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResendClient() {
+  return new Resend(process.env.RESEND_API_KEY);
+}
 
 const DEFAULT_FROM = `${process.env.EMAIL_FROM_NAME ?? "Event Registration"} <${process.env.EMAIL_FROM ?? "noreply@example.com"}>`;
 
@@ -16,6 +18,7 @@ export interface SendEmailOptions {
 
 export async function sendEmail(options: SendEmailOptions): Promise<{ success: boolean; error?: string }> {
   try {
+    const resend = getResendClient();
     await resend.emails.send({
       from: options.from ?? DEFAULT_FROM,
       to: options.to,
