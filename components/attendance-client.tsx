@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Search, CheckCircle, UserCheck, UserX, UserPlus, ChevronDown, Download } from "lucide-react";
+import { Search, CheckCircle, UserCheck, UserX, UserPlus, ChevronDown, Download, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,6 +81,10 @@ export function AttendanceClient({ eventId, initialGuests }: AttendanceClientPro
     email: "",
     category: "GENERAL",
   });
+
+  // Thank you dialog state
+  const [thankYouOpen, setThankYouOpen] = useState(false);
+  const [thankYouLoading, setThankYouLoading] = useState(false);
 
   const filtered = initialGuests.filter((g) => {
     const q = search.toLowerCase();
@@ -170,6 +174,29 @@ export function AttendanceClient({ eventId, initialGuests }: AttendanceClientPro
       router.refresh();
     } finally {
       setWalkInLoading(false);
+    }
+  }
+
+  async function handleSendThankYou() {
+    setThankYouLoading(true);
+    try {
+      const res = await fetch(`/api/events/${eventId}/send-thank-you`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? "Failed to send thank you emails");
+      }
+
+      const result = await res.json();
+      toast.success(result.message ?? `Sent ${result.sent} thank you email(s)`);
+      setThankYouOpen(false);
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send thank you emails");
+    } finally {
+      setThankYouLoading(false);
     }
   }
 
@@ -283,6 +310,15 @@ export function AttendanceClient({ eventId, initialGuests }: AttendanceClientPro
                 className="pl-9"
               />
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setThankYouOpen(true)}
+              disabled={initialGuests.filter((g) => g.attendanceStatus === "CONFIRMED_PRESENT").length === 0}
+            >
+              <Send className="h-4 w-4 mr-2" />
+              Thank All Attendees
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
@@ -475,6 +511,43 @@ export function AttendanceClient({ eventId, initialGuests }: AttendanceClientPro
             <Button onClick={handleAddWalkIn} disabled={walkInLoading || !walkInForm.fullName.trim()}>
               <UserPlus className="h-4 w-4 mr-1.5" />
               {walkInLoading ? "Adding…" : "Add Walk-in"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Send Thank You Emails Dialog ── */}
+      <Dialog open={thankYouOpen} onOpenChange={setThankYouOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-4 w-4" />
+              Send Thank You Emails
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-900 font-medium">Ready to send thank you emails</p>
+              <p className="text-sm text-blue-800 mt-2">
+                This will send personalized thank you emails to all {initialGuests.filter((g) => g.attendanceStatus === "CONFIRMED_PRESENT").length} confirmed attendees using your THANK_YOU email template.
+              </p>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <p className="text-xs font-medium text-amber-900">⚠️ Note</p>
+              <p className="text-xs text-amber-800 mt-1">
+                Each guest will receive a personalized email with their name and event details. This action cannot be undone.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setThankYouOpen(false)} disabled={thankYouLoading}>
+              Cancel
+            </Button>
+            <Button onClick={handleSendThankYou} disabled={thankYouLoading}>
+              <Send className="h-4 w-4 mr-1.5" />
+              {thankYouLoading ? "Sending…" : "Send Thank You Emails"}
             </Button>
           </DialogFooter>
         </DialogContent>

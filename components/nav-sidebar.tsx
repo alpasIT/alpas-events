@@ -11,6 +11,7 @@ import {
   Menu,
   X,
   ShieldCheck,
+  HelpCircle,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/events", label: "Events", icon: CalendarDays },
+  { href: "/help", label: "Help", icon: HelpCircle },
 ];
 
 const adminItems = [

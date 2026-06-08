@@ -129,6 +129,7 @@ model Event {
   activityLogs   ActivityLog[]
   adminUsers     AdminUser[]     @relation("EventAdmins")
   tables         SeatingTable[]
+  feedback       EventFeedback[]
 
   @@map("events")
 }
@@ -208,6 +209,7 @@ model Guest {
   rsvpOverrides       RsvpOverride[]
   emailLogs           EmailLog[]
   plusOnes            PlusOne[]
+  feedback            EventFeedback[]
   seat                Seat?     @relation(fields: [seatId], references: [id], onDelete: SetNull)
 
   @@unique([eventId, email])
@@ -313,6 +315,30 @@ model EmailLog {
   createdAt DateTime @default(now())
 
   @@map("email_logs")
+}
+
+// ============================================================
+// EVENT FEEDBACK
+// ============================================================
+
+model EventFeedback {
+  id          String    @id @default(cuid())
+  eventId     String
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  guestId     String
+  guest       Guest     @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  token       String    @unique // Unique token for feedback link
+  
+  rating      Int       // 1-5 stars
+  comment     String?   @db.Text
+  submittedAt DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([eventId, guestId], name: "eventId_guestId")
+  @@map("event_feedback")
 }
 
 // ============================================================

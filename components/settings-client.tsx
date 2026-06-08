@@ -1,8 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface SettingsClientProps {
   eventId: string;
@@ -44,11 +48,14 @@ export function SettingsClient({
   initialEnablePlusOne,
   initialEnableDietaryPreference,
 }: SettingsClientProps) {
+  const router = useRouter();
   const [enablePlusOne, setEnablePlusOne] = useState(initialEnablePlusOne);
   const [enableDietaryPreference, setEnableDietaryPreference] = useState(
     initialEnableDietaryPreference
   );
   const [saving, setSaving] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   async function updateSetting(field: string, value: boolean) {
     setSaving(true);
@@ -67,6 +74,21 @@ export function SettingsClient({
       if (field === "enableDietaryPreference") setEnableDietaryPreference(!value);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDeleteEvent() {
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/events/${eventId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete");
+      toast.success("Event deleted successfully");
+      router.push("/events");
+    } catch {
+      toast.error("Failed to delete event");
+      setIsDeleting(false);
     }
   }
 
@@ -123,6 +145,52 @@ export function SettingsClient({
           </div>
         </CardContent>
       </Card>
+
+      <Card className="border-destructive">
+        <CardHeader>
+          <CardTitle>Danger Zone</CardTitle>
+          <CardDescription>
+            Permanently delete this event and all associated data.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            variant="destructive"
+            onClick={() => setShowDeleteDialog(true)}
+            disabled={isDeleting}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete Event
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Event</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this event? This action cannot be undone and will permanently delete the event and all associated data including guests, invitations, and attendance records.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteEvent}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete Event"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
