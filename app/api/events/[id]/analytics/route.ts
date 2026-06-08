@@ -27,7 +27,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       }),
       prisma.guest.findMany({
         where: { eventId },
-        select: { rsvpStatus: true, attendanceStatus: true, createdAt: true },
+        select: { rsvpStatus: true, attendanceStatus: true, createdAt: true, category: true },
         orderBy: { createdAt: "asc" },
       }),
       // Check-ins per hour on event day
