@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
@@ -46,10 +47,50 @@ export async function POST(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Admin not found" }, { status: 404 });
     }
 
-    // Hash the new password
+    // Hash the new password for database storage
     const passwordHash = await bcrypt.hash(parsed.data.newPassword, 10);
 
-    // Update the admin's password
+    // Update password in Supabase Auth using admin API
+    const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!serviceRole || !supabaseUrl) {
+      return NextResponse.json({ error: "Service role not configured" }, { status: 500 });
+    }
+
+    const adminSupabase = createAdminClient(supabaseUrl, serviceRole, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    // Get the Supabase user by email
+    const { data: { users }, error: lookupError } = await adminSupabase.auth.admin.listUsers();
+    if (lookupError) {
+      console.error("Failed to list Supabase users:", lookupError);
+      return NextResponse.json(
+        { error: "Failed to update authentication password" },
+        { status: 500 }
+      );
+    }
+
+    const supabaseUser = users.find(u => u.email === targetAdmin.email);
+    if (!supabaseUser) {
+      return NextResponse.json({ error: "User not found in auth system" }, { status: 404 });
+    }
+
+    // Update password in Supabase Auth
+    const { error: updateError } = await adminSupabase.auth.admin.updateUserById(
+      supabaseUser.id,
+      { password: parsed.data.newPassword }
+    );
+
+    if (updateError) {
+      console.error("Failed to update Supabase auth password:", updateError);
+      return NextResponse.json(
+        { error: "Failed to update authentication password" },
+        { status: 500 }
+      );
+    }
+
+    // Update the admin's password hash in database
     const updated = await prisma.adminUser.update({
       where: { id: adminId },
       data: { passwordHash },
