@@ -142,7 +142,7 @@ export function AnalyticsClient({ eventId }: { eventId: string }) {
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
-                <Pie data={attendancePieData} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={90} label={({ label, percent }) => `${percent ? (percent * 100).toFixed(0) : '0'}%`} labelLine={false}>
+                <Pie data={attendancePieData} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${percent ? (percent * 100).toFixed(0) : '0'}%`} labelLine={false}>
                   {attendancePieData.map((entry) => (
                     <Cell key={entry.status} fill={ATTENDANCE_COLORS[entry.label] ?? "#9ca3af"} />
                   ))}
