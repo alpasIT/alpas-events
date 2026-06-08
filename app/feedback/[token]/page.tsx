@@ -146,7 +146,7 @@ export default function FeedbackPage({ params }: PageProps) {
         token={token}
         eventName={feedback.event.name}
         guestName={feedback.guest.fullName}
-        guestSalutation={feedback.guest.salutation}
+        guestSalutation={feedback.guest.salutation ?? undefined}
         initialRating={feedback.rating}
         initialComment={feedback.comment}
       />
