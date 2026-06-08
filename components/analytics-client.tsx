@@ -124,7 +124,7 @@ export function AnalyticsClient({ eventId }: { eventId: string }) {
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
-                <Pie data={rsvpPieData} dataKey="count" nameKey="status" cx="50%" cy="50%" outerRadius={90} label={({ status, percent }) => `${status} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                <Pie data={rsvpPieData} dataKey="count" nameKey="status" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
                   {rsvpPieData.map((entry) => (
                     <Cell key={entry.status} fill={RSVP_COLORS[entry.status] ?? "#9ca3af"} />
                   ))}
