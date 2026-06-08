@@ -100,7 +100,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const eventTime = formatDateTime(invitation.event.startTime);
     const venue = invitation.event.venue;
 
-    if (confirmTemplate) {
+    if (confirmTemplate && confirmTemplate.htmlBody) {
       const { interpolateTemplate } = await import("@/lib/utils");
       const htmlBody = interpolateTemplate(confirmTemplate.htmlBody, {
         guestName: invitation.guest.fullName,
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
       await sendEmail({
         to: invitation.guest.email,
-        subject: interpolateTemplate(confirmTemplate.subject, { eventName, guestName: invitation.guest.fullName }),
+        subject: interpolateTemplate(confirmTemplate.subject ?? "", { eventName, guestName: invitation.guest.fullName }),
         htmlBody,
       });
     } else if (response === "ACCEPTED") {
