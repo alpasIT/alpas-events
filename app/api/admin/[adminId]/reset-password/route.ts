@@ -48,6 +48,13 @@ export async function POST(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Admin not found" }, { status: 404 });
     }
 
+    if (!targetAdmin.supabaseId) {
+      return NextResponse.json(
+        { error: "Admin is not linked to Supabase Auth; cannot reset password" },
+        { status: 400 }
+      );
+    }
+
     // Hash the new password for database storage
     const passwordHash = await bcrypt.hash(parsed.data.newPassword, 10);
 
