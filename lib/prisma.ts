@@ -6,8 +6,12 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient() {
+  // Supabase pooler presents a cert chain that Node's default verify-full rejects.
+  // Prefer sslmode=no-verify in DATABASE_URL; also pass explicit ssl for adapter safety.
+  const connectionString = process.env.DATABASE_URL!;
   const adapter = new PrismaPg({
-    connectionString: process.env.DATABASE_URL!,
+    connectionString,
+    ssl: { rejectUnauthorized: false },
   });
   return new PrismaClient({
     adapter,
