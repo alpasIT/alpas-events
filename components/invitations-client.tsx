@@ -62,7 +62,8 @@ export function InvitationsClient({ eventId, initialInvitations, eventDate }: In
       toast.success("Invitation resent");
       router.refresh();
     } else {
-      toast.error("Failed to resend invitation");
+      const data = await res.json().catch(() => ({}));
+      toast.error(data.error ?? "Failed to resend invitation");
     }
   }
 
