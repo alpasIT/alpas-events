@@ -32,6 +32,10 @@ export async function POST(_: NextRequest, { params }: Params) {
 
     const { guest, event } = invitation;
 
+    if (event.date < new Date()) {
+      return NextResponse.json({ error: "Cannot resend invitations for past events" }, { status: 400 });
+    }
+
     const defaultTemplate = await prisma.emailTemplate.findFirst({
       where: { eventId, type: "INVITATION" },
       orderBy: { isDefault: "desc" },

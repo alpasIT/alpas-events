@@ -48,6 +48,10 @@ export async function POST(request: NextRequest, { params }: Params) {
     const event = await prisma.event.findUnique({ where: { id: eventId } });
     if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
+    if (event.date < new Date()) {
+      return NextResponse.json({ error: "Cannot send invitations for past events" }, { status: 400 });
+    }
+
     const guests = await prisma.guest.findMany({
       where: { id: { in: guestIds }, eventId },
     });

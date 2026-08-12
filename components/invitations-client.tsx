@@ -37,11 +37,13 @@ interface Invitation {
 interface InvitationsClientProps {
   eventId: string;
   initialInvitations: Invitation[];
+  eventDate: string;
 }
 
-export function InvitationsClient({ eventId, initialInvitations }: InvitationsClientProps) {
+export function InvitationsClient({ eventId, initialInvitations, eventDate }: InvitationsClientProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const isPast = new Date(eventDate) < new Date();
 
   const filtered = initialInvitations.filter((inv) => {
     const q = search.toLowerCase();
@@ -74,6 +76,11 @@ export function InvitationsClient({ eventId, initialInvitations }: InvitationsCl
 
   return (
     <div className="space-y-4">
+      {isPast && (
+        <div className="rounded-md border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+          This event has already passed. Sending and resending invitations is disabled.
+        </div>
+      )}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -139,6 +146,7 @@ export function InvitationsClient({ eventId, initialInvitations }: InvitationsCl
                         variant="ghost"
                         size="sm"
                         onClick={() => handleResend(inv.id)}
+                        disabled={isPast}
                       >
                         <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
                         Resend

@@ -12,7 +12,7 @@ export default async function GuestsPage({ params }: PageProps) {
 
   const event = await prisma.event.findUnique({
     where: { id },
-    select: { name: true, enablePlusOne: true, enableDietaryPreference: true },
+    select: { name: true, date: true, enablePlusOne: true, enableDietaryPreference: true },
   });
   if (!event) notFound();
 
@@ -42,6 +42,7 @@ export default async function GuestsPage({ params }: PageProps) {
           initialGuests={serialized}
           enablePlusOne={event.enablePlusOne}
           enableDietaryPreference={event.enableDietaryPreference}
+          eventDate={event.date.toISOString()}
         />
       </div>
     </div>

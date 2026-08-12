@@ -45,7 +45,7 @@ export default async function InvitationsPage({ params }: PageProps) {
           <h1 className="text-xl font-bold">Invitations</h1>
           <p className="text-sm text-muted-foreground">{event.name}</p>
         </div>
-        <InvitationsClient eventId={id} initialInvitations={serialized} />
+        <InvitationsClient eventId={id} initialInvitations={serialized} eventDate={event.date.toISOString()} />
       </div>
     </div>
   );

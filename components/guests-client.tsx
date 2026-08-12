@@ -58,9 +58,10 @@ interface GuestsClientProps {
   initialGuests: Guest[];
   enablePlusOne: boolean;
   enableDietaryPreference: boolean;
+  eventDate: string;
 }
 
-export function GuestsClient({ eventId, initialGuests, enablePlusOne, enableDietaryPreference }: GuestsClientProps) {
+export function GuestsClient({ eventId, initialGuests, enablePlusOne, enableDietaryPreference, eventDate }: GuestsClientProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
@@ -68,6 +69,7 @@ export function GuestsClient({ eventId, initialGuests, enablePlusOne, enableDiet
   const [addOpen, setAddOpen] = useState(false);
   const [editGuest, setEditGuest] = useState<Guest | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const isPast = new Date(eventDate) < new Date();
 
   const filtered = initialGuests.filter((g) => {
     const matchSearch =
@@ -210,7 +212,7 @@ export function GuestsClient({ eventId, initialGuests, enablePlusOne, enableDiet
         </DropdownMenu>
 
         {selectedIds.size > 0 && (
-          <Button variant="outline" onClick={handleBulkInvite}>
+          <Button variant="outline" onClick={handleBulkInvite} disabled={isPast}>
             <Send className="h-4 w-4 mr-2" />
             Invite {selectedIds.size} selected
           </Button>
@@ -302,7 +304,7 @@ export function GuestsClient({ eventId, initialGuests, enablePlusOne, enableDiet
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleSendInvitation(guest.id)}>
+                        <DropdownMenuItem onClick={() => handleSendInvitation(guest.id)} disabled={isPast}>
                           <Send className="h-4 w-4 mr-2" />
                           Send Invitation
                         </DropdownMenuItem>
