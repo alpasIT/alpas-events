@@ -42,7 +42,7 @@ interface Guest {
   id: string;
   fullName: string;
   email: string;
-  mobile: string;
+  mobile: string | null;
   designation: string;
   company: string;
   category: string;

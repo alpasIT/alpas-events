@@ -116,8 +116,8 @@ export function GuestForm({ eventId, guest, enablePlusOne = true, enableDietaryP
           {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
         </div>
         <div className="space-y-1">
-          <Label>Mobile *</Label>
-          <Input {...register("mobile")} placeholder="+63 917 123 4567" />
+          <Label>Mobile</Label>
+          <Input {...register("mobile")} placeholder="917xxxxxxx" />
           {errors.mobile && <p className="text-xs text-destructive">{errors.mobile.message}</p>}
         </div>
       </div>

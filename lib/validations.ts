@@ -5,6 +5,20 @@ export const loginSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
+export const newPasswordSchema = z
+  .object({
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string().min(8, "Please confirm your password"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 export const eventSchema = z.object({
   name: z.string().min(1, "Event name is required").max(150),
   date: z.string().min(1, "Date is required"),
@@ -19,7 +33,7 @@ export const guestSchema = z.object({
   fullName: z.string().min(1, "Full name is required").max(100),
   designation: z.string().min(1, "Designation is required").max(80),
   company: z.string().min(1, "Company is required").max(120),
-  mobile: z.string().min(1, "Mobile is required").max(30),
+  mobile: z.string().max(30).optional(),
   email: z.string().email("Invalid email address").max(255),
   salutation: z.enum(["MR", "MS", "MRS", "DR", "ENGR", "ATTY", "PROF"]).optional(),
   plusOneNames: z.array(z.string().max(100)).optional(),
@@ -74,6 +88,8 @@ export const attendanceOverrideSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type NewPasswordInput = z.infer<typeof newPasswordSchema>;
 export type EventInput = z.infer<typeof eventSchema>;
 export type GuestInput = z.infer<typeof guestSchema>;
 export type AdminUserInput = z.infer<typeof adminUserSchema>;

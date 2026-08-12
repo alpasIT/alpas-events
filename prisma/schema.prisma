@@ -174,7 +174,7 @@ model Guest {
   fullName    String         @db.VarChar(100)
   designation String         @db.VarChar(80)
   company     String         @db.VarChar(120)
-  mobile      String         @db.VarChar(30)
+  mobile      String?        @db.VarChar(30)
   email       String         @db.VarChar(255)
 
   // Optional fields

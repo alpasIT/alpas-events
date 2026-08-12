@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth";
 import { guestSchema } from "@/lib/validations";
 import { generateToken } from "@/lib/utils";
 
@@ -9,6 +10,9 @@ interface Params {
 }
 
 export async function GET(_: NextRequest, { params }: Params) {
+  const auth = await requireAdmin();
+  if (auth.response) return auth.response;
+
   const { id } = await params;
   try {
     const guests = await prisma.guest.findMany({

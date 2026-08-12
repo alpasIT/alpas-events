@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth";
 import { guestSchema } from "@/lib/validations";
 
 interface Params {
@@ -8,6 +9,9 @@ interface Params {
 }
 
 export async function GET(_: NextRequest, { params }: Params) {
+  const auth = await requireAdmin();
+  if (auth.response) return auth.response;
+
   const { guestId } = await params;
   try {
     const guest = await prisma.guest.findUnique({ where: { id: guestId } });
@@ -89,12 +93,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_: NextRequest, { params }: Params) {
+  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR"]);
+  if (auth.response) return auth.response;
+
   const { guestId } = await params;
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
     await prisma.guest.delete({ where: { id: guestId } });
     return NextResponse.json({ success: true });
   } catch {

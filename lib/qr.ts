@@ -43,15 +43,21 @@ export async function uploadQRCodeAndGetUrl(qrToken: string): Promise<string | u
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    await admin.storage.from("email-assets").upload(path, buffer, {
+    const { error } = await admin.storage.from("email-assets").upload(path, buffer, {
       contentType: "image/png",
       cacheControl: "31536000",
       upsert: true,
     });
 
+    if (error) {
+      console.error("[QR upload] Storage upload failed:", error.message);
+      return undefined;
+    }
+
     const { data } = admin.storage.from("email-assets").getPublicUrl(path);
     return data.publicUrl;
-  } catch {
+  } catch (err) {
+    console.error("[QR upload] Unexpected error:", err instanceof Error ? err.message : err);
     return undefined;
   }
 }

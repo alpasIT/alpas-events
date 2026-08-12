@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { rsvpResponseSchema } from "@/lib/validations";
 import { sendEmail } from "@/lib/email";
 import { formatDate, formatDateTime } from "@/lib/utils";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 interface Params {
   params: Promise<{ token: string }>;
@@ -28,6 +29,10 @@ export async function GET(_: NextRequest, { params }: Params) {
 
 export async function POST(request: NextRequest, { params }: Params) {
   const { token } = await params;
+
+  if (!checkRateLimit(`rsvp:${getClientIp(request)}`, 10, 60_000)) {
+    return NextResponse.json({ error: "Too many requests, please try again shortly" }, { status: 429 });
+  }
 
   try {
     const invitation = await prisma.invitation.findUnique({

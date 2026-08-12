@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Plus, Trash2, Key, RotateCcw } from "lucide-react";
-import { adminUserSchema, type AdminUserInput } from "@/lib/validations";
+import { Plus, Trash2, Key, RotateCcw, Eye, EyeOff } from "lucide-react";
+import { adminUserSchema, newPasswordSchema, type AdminUserInput, type NewPasswordInput } from "@/lib/validations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,6 +60,9 @@ export function AdminClient({ admins, currentUserEmail }: AdminClientProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resetTarget, setResetTarget] = useState<{ id: string; email: string } | null>(null);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<AdminUserInput>({
     resolver: zodResolver(adminUserSchema),
@@ -67,6 +70,15 @@ export function AdminClient({ admins, currentUserEmail }: AdminClientProps) {
   });
 
   const role = watch("role");
+
+  const {
+    register: registerReset,
+    handleSubmit: handleResetSubmit,
+    reset: resetResetForm,
+    formState: { errors: resetErrors },
+  } = useForm<NewPasswordInput>({
+    resolver: zodResolver(newPasswordSchema),
+  });
 
   async function onSubmit(data: AdminUserInput) {
     setLoading(true);
@@ -108,21 +120,15 @@ export function AdminClient({ admins, currentUserEmail }: AdminClientProps) {
     }
   }
 
-  async function handleResetPassword(adminId: string, adminEmail: string) {
-    const newPassword = prompt(`Enter new password for ${adminEmail}:\n\n(Must be at least 8 characters)`);
-    if (!newPassword) return;
+  async function onResetSubmit(data: NewPasswordInput) {
+    if (!resetTarget) return;
 
-    if (newPassword.length < 8) {
-      toast.error("Password must be at least 8 characters");
-      return;
-    }
-
-    setLoading(true);
+    setResetLoading(true);
     try {
-      const res = await fetch(`/api/admin/${adminId}/reset-password`, {
+      const res = await fetch(`/api/admin/${resetTarget.id}/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newPassword, adminEmail }),
+        body: JSON.stringify({ newPassword: data.password, adminEmail: resetTarget.email }),
       });
 
       if (!res.ok) {
@@ -130,12 +136,14 @@ export function AdminClient({ admins, currentUserEmail }: AdminClientProps) {
         throw new Error(err.error ?? "Failed to reset password");
       }
 
-      toast.success(`Password reset for ${adminEmail}`);
+      toast.success(`Password reset for ${resetTarget.email}`);
+      setResetTarget(null);
+      resetResetForm();
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to reset password");
     } finally {
-      setLoading(false);
+      setResetLoading(false);
     }
   }
 
@@ -179,7 +187,7 @@ export function AdminClient({ admins, currentUserEmail }: AdminClientProps) {
                         size="icon"
                         className="h-8 w-8"
                         title="Reset password"
-                        onClick={() => handleResetPassword(admin.id, admin.email)}
+                        onClick={() => setResetTarget({ id: admin.id, email: admin.email })}
                       >
                         <RotateCcw className="h-4 w-4" />
                       </Button>
@@ -243,6 +251,65 @@ export function AdminClient({ admins, currentUserEmail }: AdminClientProps) {
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={loading}>
                 {loading ? "Creating..." : "Create Admin"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!resetTarget}
+        onOpenChange={(v) => {
+          if (!v) {
+            setResetTarget(null);
+            resetResetForm();
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset password for {resetTarget?.email}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleResetSubmit(onResetSubmit)} className="space-y-4">
+            <div className="space-y-1">
+              <Label>New password *</Label>
+              <div className="relative">
+                <Input
+                  {...registerReset("password")}
+                  type={showResetPassword ? "text" : "password"}
+                  placeholder="Min 8 characters"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowResetPassword(!showResetPassword)}
+                  tabIndex={-1}
+                >
+                  {showResetPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {resetErrors.password && (
+                <p className="text-xs text-destructive">{resetErrors.password.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <Label>Confirm password *</Label>
+              <Input
+                {...registerReset("confirmPassword")}
+                type={showResetPassword ? "text" : "password"}
+                placeholder="Min 8 characters"
+              />
+              {resetErrors.confirmPassword && (
+                <p className="text-xs text-destructive">{resetErrors.confirmPassword.message}</p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setResetTarget(null)}>Cancel</Button>
+              <Button type="submit" disabled={resetLoading}>
+                {resetLoading ? "Resetting..." : "Reset Password"}
               </Button>
             </div>
           </form>

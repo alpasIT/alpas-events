@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  if (!checkRateLimit(`feedback:${getClientIp(request)}`, 10, 60_000)) {
+    return NextResponse.json({ error: "Too many requests, please try again shortly" }, { status: 429 });
+  }
+
   try {
     const body = await request.json();
     const { token, rating, comment } = body as {

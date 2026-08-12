@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth";
 import { eventSchema } from "@/lib/validations";
 
 export async function GET() {
+  const auth = await requireAdmin();
+  if (auth.response) return auth.response;
+
   try {
     const events = await prisma.event.findMany({
       orderBy: { date: "desc" },
@@ -16,11 +19,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireAdmin();
+  if (auth.response) return auth.response;
 
+  try {
     const body = await request.json();
     const parsed = eventSchema.safeParse(body);
     if (!parsed.success) {

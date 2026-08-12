@@ -1,40 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { CalendarDays, Eye, EyeOff } from "lucide-react";
-import { loginSchema, type LoginInput } from "@/lib/validations";
+import { newPasswordSchema, type NewPasswordInput } from "@/lib/validations";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function LoginPage() {
+export default function ResetPasswordPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [hasSession, setHasSession] = useState<boolean | null>(null);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<NewPasswordInput>({
+    resolver: zodResolver(newPasswordSchema),
   });
 
-  async function onSubmit(data: LoginInput) {
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setHasSession(!!user);
+    });
+  }, []);
+
+  async function onSubmit(data: NewPasswordInput) {
     setLoading(true);
     const supabase = createClient();
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    });
+    const { error } = await supabase.auth.updateUser({ password: data.password });
 
     if (error) {
       toast.error(error.message);
@@ -42,9 +47,34 @@ export default function LoginPage() {
       return;
     }
 
-    toast.success("Signed in successfully");
-    router.push("/dashboard");
-    router.refresh();
+    await supabase.auth.signOut();
+    toast.success("Password updated. Please sign in.");
+    router.push("/login");
+  }
+
+  if (hasSession === null) {
+    return null;
+  }
+
+  if (!hasSession) {
+    return (
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="text-center space-y-2">
+          <div className="flex justify-center mb-2">
+            <div className="p-3 rounded-full bg-primary/10">
+              <CalendarDays className="h-8 w-8 text-primary" />
+            </div>
+          </div>
+          <CardTitle className="text-2xl">Link expired</CardTitle>
+          <CardDescription>This reset link is invalid or has expired.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Link href="/forgot-password" className="text-sm text-primary hover:underline block text-center">
+            Request a new link
+          </Link>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -55,38 +85,19 @@ export default function LoginPage() {
             <CalendarDays className="h-8 w-8 text-primary" />
           </div>
         </div>
-        <CardTitle className="text-2xl">Event Registration</CardTitle>
-        <CardDescription>Sign in to your admin account</CardDescription>
+        <CardTitle className="text-2xl">Set a new password</CardTitle>
+        <CardDescription>Choose a new password for your account</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="admin@example.com"
-              autoComplete="email"
-              {...register("email")}
-            />
-            {errors.email && (
-              <p className="text-xs text-destructive">{errors.email.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Link href="/forgot-password" className="text-xs text-primary hover:underline">
-                Forgot password?
-              </Link>
-            </div>
+            <Label htmlFor="password">New password</Label>
             <div className="relative">
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
-                autoComplete="current-password"
+                autoComplete="new-password"
                 className="pr-10"
                 {...register("password")}
               />
@@ -104,8 +115,22 @@ export default function LoginPage() {
             )}
           </div>
 
+          <div className="space-y-1">
+            <Label htmlFor="confirmPassword">Confirm password</Label>
+            <Input
+              id="confirmPassword"
+              type={showPassword ? "text" : "password"}
+              placeholder="••••••••"
+              autoComplete="new-password"
+              {...register("confirmPassword")}
+            />
+            {errors.confirmPassword && (
+              <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>
+            )}
+          </div>
+
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Signing in..." : "Sign In"}
+            {loading ? "Updating..." : "Update password"}
           </Button>
         </form>
       </CardContent>

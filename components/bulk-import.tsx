@@ -76,7 +76,7 @@ export function BulkImport({ eventId }: BulkImportProps) {
     const example = [
       "Juan Dela Cruz",
       "juan@example.com",
-      "+63 917 123 4567",
+      "917xxxxxxx",
       "CEO",
       "Acme Corp",
       "MR",
