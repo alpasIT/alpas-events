@@ -69,12 +69,6 @@ export async function GET(_: NextRequest, { params }: Params) {
     return NextResponse.json({ success: true, feedback });
   } catch (err) {
     console.error(`[Feedback API] Error:`, err);
-    return NextResponse.json(
-      {
-        error: "Failed to fetch feedback",
-        details: err instanceof Error ? err.message : String(err),
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch feedback" }, { status: 500 });
   }
 }

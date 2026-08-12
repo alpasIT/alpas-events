@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
         startTime: new Date(startTime),
         endTime: endTime ? new Date(endTime) : null,
         rsvpDeadline: new Date(rsvpDeadline),
+        createdById: auth.admin.id,
       },
     });
 

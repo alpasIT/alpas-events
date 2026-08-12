@@ -30,6 +30,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   const { id } = await params;
   try {
+    const existing = await prisma.event.findUnique({ where: { id }, select: { createdById: true } });
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const canEdit = auth.admin.role === "SUPER_ADMIN" || existing.createdById === auth.admin.id;
+    if (!canEdit) return NextResponse.json({ error: "Only the event creator or a Super Admin can edit event details" }, { status: 403 });
     const body = await request.json();
     const parsed = eventSchema.partial().safeParse(body);
     if (!parsed.success) {

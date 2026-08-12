@@ -7,9 +7,16 @@ import { Trash2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EventDetailsForm } from "@/components/event-details-form";
 
 interface SettingsClientProps {
   eventId: string;
+  canEdit: boolean;
+  eventName: string;
+  eventVenue: string;
+  eventDate: string;
+  eventStartTime: string;
+  eventEndTime: string;
   initialEnablePlusOne: boolean;
   initialEnableDietaryPreference: boolean;
 }
@@ -45,6 +52,12 @@ function Toggle({
 
 export function SettingsClient({
   eventId,
+  canEdit,
+  eventName,
+  eventVenue,
+  eventDate,
+  eventStartTime,
+  eventEndTime,
   initialEnablePlusOne,
   initialEnableDietaryPreference,
 }: SettingsClientProps) {
@@ -104,6 +117,56 @@ export function SettingsClient({
 
   return (
     <div className="space-y-6 max-w-2xl">
+      <Card>
+        <CardHeader>
+          <CardTitle>Event Details</CardTitle>
+          <CardDescription>
+            {canEdit
+              ? "Update the event name, venue, and dates."
+              : "Core event information (read-only — you are not the event creator)."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {canEdit ? (
+            <EventDetailsForm
+              eventId={eventId}
+              defaultValues={{
+                name: eventName,
+                venue: eventVenue,
+                date: eventDate,
+                startTime: eventStartTime,
+                endTime: eventEndTime,
+              }}
+            />
+          ) : (
+            <dl className="space-y-2 text-sm">
+              <div className="flex gap-2">
+                <dt className="font-medium w-24 shrink-0">Name</dt>
+                <dd className="text-muted-foreground">{eventName}</dd>
+              </div>
+              <div className="flex gap-2">
+                <dt className="font-medium w-24 shrink-0">Venue</dt>
+                <dd className="text-muted-foreground">{eventVenue}</dd>
+              </div>
+              <div className="flex gap-2">
+                <dt className="font-medium w-24 shrink-0">Date</dt>
+                <dd className="text-muted-foreground">{eventDate}</dd>
+              </div>
+              <div className="flex gap-2">
+                <dt className="font-medium w-24 shrink-0">Start Time</dt>
+                <dd className="text-muted-foreground">{eventStartTime}</dd>
+              </div>
+              {eventEndTime && (
+                <div className="flex gap-2">
+                  <dt className="font-medium w-24 shrink-0">End Time</dt>
+                  <dd className="text-muted-foreground">{eventEndTime}</dd>
+                </div>
+              )}
+            </dl>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>RSVP Form Options</CardTitle>

@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const ext = file.name.split(".").pop()?.toLowerCase() ?? "png";
+    const mimeToExt: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/gif": "gif", "image/webp": "webp" };
+    const ext = mimeToExt[file.type] ?? "png";
     const path = `email-images/${eventId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
     const arrayBuffer = await file.arrayBuffer();

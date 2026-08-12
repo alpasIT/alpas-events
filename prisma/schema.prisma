@@ -120,6 +120,10 @@ model Event {
   attendanceUnlockedAt DateTime? // Set by Super Admin for early unlock
   attendanceLockedAt   DateTime? // When module becomes read-only (48h after endTime)
 
+  // Creator tracking for edit authorization
+  createdById    String?
+  createdByAdmin AdminUser? @relation("EventCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -153,6 +157,7 @@ model AdminUser {
   lastLogin DateTime?
 
   events              Event[]              @relation("EventAdmins")
+  createdEvents       Event[]              @relation("EventCreator")
   activityLogs        ActivityLog[]
   guestEdits          GuestChangeHistory[]
   attendanceOverrides AttendanceOverride[]
