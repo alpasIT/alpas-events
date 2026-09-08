@@ -27,9 +27,9 @@ Supabase **Free** still pauses after **~1 week of inactivity**. Keep-alive **red
 
 ### Vercel Cron
 
-[`vercel.json`](vercel.json) schedules `GET /api/cron/keep-alive` daily at 12:00 UTC (`0 12 * * *`).
+Vercel Cron can call `GET /api/cron/keep-alive` if you add a once-per-day schedule in the project Cron Jobs settings or `vercel.json` (Hobby: max once/day, e.g. `0 12 * * *`). Cron entries that run more often **fail the deployment** on Hobby.
 
-> Hobby accounts only allow cron expressions that run **once per day**. More frequent schedules fail the deployment.
+If deploy validation rejects crons for your plan/team, use GitHub Actions ([`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml)) or `npm run db:keep-alive` instead.
 
 Set in Vercel project env:
 
