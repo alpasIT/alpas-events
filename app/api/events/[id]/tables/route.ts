@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth";
 
 interface Params {
   params: Promise<{ id: string }>;
 }
 
 export async function GET(_req: NextRequest, { params }: Params) {
+  const auth = await requireAdmin();
+  if (auth.response) return auth.response;
+
   const { id: eventId } = await params;
 
   const tables = await prisma.seatingTable.findMany({
@@ -35,11 +38,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
-  const { id: eventId } = await params;
+  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR", "STAFF"]);
+  if (auth.response) return auth.response;
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id: eventId } = await params;
 
   const body = await request.json();
   const { label, capacity } = body as { label: string; capacity: number };

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth";
 import { emailTemplateSchema } from "@/lib/validations";
 
 interface Params {
@@ -8,12 +8,11 @@ interface Params {
 }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR"]);
+  if (auth.response) return auth.response;
+
   const { id: eventId, templateId } = await params;
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
     const body = await request.json();
     const parsed = emailTemplateSchema.partial().safeParse(body);
     if (!parsed.success) {
@@ -46,12 +45,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_: NextRequest, { params }: Params) {
+  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR"]);
+  if (auth.response) return auth.response;
+
   const { templateId } = await params;
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
     await prisma.emailTemplate.delete({ where: { id: templateId } });
     return NextResponse.json({ success: true });
   } catch {

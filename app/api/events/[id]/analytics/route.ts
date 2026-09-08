@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
 
 interface Params {
   params: Promise<{ id: string }>;
 }
 
 export async function GET(_req: NextRequest, { params }: Params) {
+  const auth = await requireAdmin();
+  if (auth.response) return auth.response;
+
   const { id: eventId } = await params;
 
   const [rsvpGroups, attendanceGroups, categoryGroups, guests, checkInTimeline] =

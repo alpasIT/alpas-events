@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth";
 import { guestSchema } from "@/lib/validations";
 
@@ -23,15 +22,11 @@ export async function GET(_: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR"]);
+  if (auth.response) return auth.response;
+
   const { id: eventId, guestId } = await params;
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const admin = await prisma.adminUser.findUnique({ where: { email: user.email! } });
-    if (!admin) return NextResponse.json({ error: "Admin not found" }, { status: 403 });
-
     const body = await request.json();
     const parsed = guestSchema.partial().safeParse(body);
     if (!parsed.success) {
@@ -67,7 +62,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         await prisma.guestChangeHistory.create({
           data: {
             guestId,
-            adminId: admin.id,
+            adminId: auth.admin.id,
             fieldName: field,
             oldValue: oldVal,
             newValue: newVal,
@@ -82,7 +77,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         type: "GUEST_UPDATED",
         description: `Guest ${guest.fullName} was updated`,
         guestId: guest.id,
-        adminId: admin.id,
+        adminId: auth.admin.id,
       },
     });
 

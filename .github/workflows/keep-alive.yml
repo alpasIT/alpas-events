@@ -1,0 +1,25 @@
+# Optional external keep-alive if Vercel Cron is unavailable (Hobby limits, etc.).
+# Set repo secrets: KEEP_ALIVE_URL, CRON_SECRET
+name: Supabase keep-alive
+
+on:
+  schedule:
+    # Every 2 days at 12:00 UTC — well under Free-plan ~7 day idle pause
+    - cron: "0 12 */2 * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping keep-alive endpoint
+        env:
+          KEEP_ALIVE_URL: ${{ secrets.KEEP_ALIVE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEEP_ALIVE_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "Set KEEP_ALIVE_URL and CRON_SECRET repository secrets."
+            exit 1
+          fi
+          curl -fsS -H "Authorization: Bearer ${CRON_SECRET}" -H "Accept: application/json" "${KEEP_ALIVE_URL}"

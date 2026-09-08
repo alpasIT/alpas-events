@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -8,9 +9,12 @@ interface Params {
 /**
  * GET /api/events/[id]/guests/cache
  * Returns a lightweight guest list for offline QR scanner caching.
- * Only returns fields needed for check-in lookup.
+ * Staff/admin only — exposes qrToken values used for check-in.
  */
 export async function GET(_req: NextRequest, { params }: Params) {
+  const auth = await requireAdmin();
+  if (auth.response) return auth.response;
+
   const { id: eventId } = await params;
 
   const guests = await prisma.guest.findMany({

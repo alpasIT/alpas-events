@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth";
 import { generateToken } from "@/lib/utils";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
@@ -11,16 +11,12 @@ interface Params {
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
+  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR"]);
+  if (auth.response) return auth.response;
+
   const { id: eventId } = await params;
 
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const admin = await prisma.adminUser.findUnique({ where: { email: user.email! } });
-    if (!admin) return NextResponse.json({ error: "Admin not found" }, { status: 403 });
-
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -123,7 +119,7 @@ export async function POST(request: NextRequest, { params }: Params) {
         eventId,
         type: "BULK_IMPORT",
         description: `Bulk import: ${successCount} guests added, ${errorDetails.length} errors`,
-        adminId: admin.id,
+        adminId: auth.admin.id,
       },
     });
 

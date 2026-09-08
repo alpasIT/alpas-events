@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth";
 import { generateToken, formatDate, formatDateTime } from "@/lib/utils";
 import {
   sendEmail,
@@ -14,6 +14,9 @@ interface Params {
 }
 
 export async function GET(_: NextRequest, { params }: Params) {
+  const auth = await requireAdmin();
+  if (auth.response) return auth.response;
+
   const { id } = await params;
   try {
     const invitations = await prisma.invitation.findMany({
@@ -28,15 +31,13 @@ export async function GET(_: NextRequest, { params }: Params) {
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
+  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR"]);
+  if (auth.response) return auth.response;
+
   const { id: eventId } = await params;
 
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const admin = await prisma.adminUser.findUnique({ where: { email: user.email! } });
-    if (!admin) return NextResponse.json({ error: "Admin not found" }, { status: 403 });
+    const admin = auth.admin;
 
     const body = await request.json();
     const { guestIds } = body as { guestIds: string[] };

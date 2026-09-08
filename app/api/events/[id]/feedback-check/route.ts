@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth";
 
 interface Params {
   params: Promise<{ id: string }>;
 }
 
 export async function GET(_: NextRequest, { params }: Params) {
+  const auth = await requireAdmin(["SUPER_ADMIN"]);
+  if (auth.response) return auth.response;
+
   const { id: eventId } = await params;
 
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
     // Try to query the EventFeedback table
     console.log("[FEEDBACK-CHECK] Attempting to query EventFeedback table...");
     

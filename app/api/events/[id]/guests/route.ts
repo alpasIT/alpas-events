@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth";
 import { guestSchema } from "@/lib/validations";
 import { generateToken } from "@/lib/utils";
@@ -26,15 +25,11 @@ export async function GET(_: NextRequest, { params }: Params) {
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
+  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR"]);
+  if (auth.response) return auth.response;
+
   const { id: eventId } = await params;
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const admin = await prisma.adminUser.findUnique({ where: { email: user.email! } });
-    if (!admin) return NextResponse.json({ error: "Admin not found" }, { status: 403 });
-
     const body = await request.json();
     const parsed = guestSchema.safeParse(body);
     if (!parsed.success) {
@@ -61,7 +56,7 @@ export async function POST(request: NextRequest, { params }: Params) {
         type: "GUEST_CREATED",
         description: `Guest ${guest.fullName} was added`,
         guestId: guest.id,
-        adminId: admin.id,
+        adminId: auth.admin.id,
       },
     });
 

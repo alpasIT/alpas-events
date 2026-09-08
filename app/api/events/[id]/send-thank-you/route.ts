@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { formatDate, formatDateTime, interpolateTemplate, generateToken } from "@/lib/utils";
 
@@ -9,23 +9,13 @@ interface Params {
 }
 
 export async function POST(_: NextRequest, { params }: Params) {
+  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR"]);
+  if (auth.response) return auth.response;
+
   const { id: eventId } = await params;
 
   try {
     console.log(`[SendThankYou] Starting for event: ${eventId}`);
-
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.log("[SendThankYou] No user found");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const admin = await prisma.adminUser.findUnique({ where: { email: user.email! } });
-    if (!admin) {
-      console.log("[SendThankYou] Admin not found");
-      return NextResponse.json({ error: "Admin not found" }, { status: 403 });
-    }
 
     const event = await prisma.event.findUnique({ where: { id: eventId } });
     if (!event) {
