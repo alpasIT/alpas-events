@@ -1,19 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 interface Params {
   params: Promise<{ adminId: string }>;
-}
-
-async function requireSuperAdmin(user: { email?: string } | null) {
-  if (!user?.email) return null;
-  const admin = await prisma.adminUser.findUnique({ where: { email: user.email } });
-  if (!admin || admin.role !== "SUPER_ADMIN") return null;
-  return admin;
 }
 
 const resetPasswordSchema = z.object({
@@ -24,11 +17,8 @@ const resetPasswordSchema = z.object({
 export async function POST(request: NextRequest, { params }: Params) {
   const { adminId } = await params;
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!await requireSuperAdmin(user)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireAdmin(["SUPER_ADMIN"]);
+    if (auth.response) return auth.response;
 
     const body = await request.json();
     const parsed = resetPasswordSchema.safeParse(body);

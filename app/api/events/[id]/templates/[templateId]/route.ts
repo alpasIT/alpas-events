@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { emailTemplateSchema } from "@/lib/validations";
 
 interface Params {
@@ -8,7 +8,7 @@ interface Params {
 }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
-  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR"]);
+  const auth = await requireAdmin();
   if (auth.response) return auth.response;
 
   const { id: eventId, templateId } = await params;
@@ -45,7 +45,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_: NextRequest, { params }: Params) {
-  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR"]);
+  const auth = await requireAdmin();
   if (auth.response) return auth.response;
 
   const { templateId } = await params;

@@ -25,8 +25,9 @@ export async function GET(_: NextRequest, { params }: Params) {
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
-  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR"]);
+  const auth = await requireAdmin();
   if (auth.response) return auth.response;
+  const admin = auth.admin;
 
   const { id: eventId } = await params;
   try {

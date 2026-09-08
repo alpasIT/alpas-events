@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { generateToken } from "@/lib/utils";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
@@ -11,8 +11,9 @@ interface Params {
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
-  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR"]);
+  const auth = await requireAdmin();
   if (auth.response) return auth.response;
+  const admin = auth.admin;
 
   const { id: eventId } = await params;
 

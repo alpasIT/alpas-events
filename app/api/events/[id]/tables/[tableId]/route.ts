@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 interface Params {
   params: Promise<{ id: string; tableId: string }>;
 }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
-  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR", "STAFF"]);
+  const auth = await requireAdmin();
   if (auth.response) return auth.response;
 
   const { tableId } = await params;
@@ -28,7 +28,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR"]);
+  const auth = await requireAdmin();
   if (auth.response) return auth.response;
 
   const { tableId } = await params;

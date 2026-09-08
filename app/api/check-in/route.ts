@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin, STAFF_CHECK_IN_ROLES } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
@@ -6,6 +7,9 @@ export async function POST(request: NextRequest) {
   if (!checkRateLimit(`check-in:${getClientIp(request)}`, 30, 60_000)) {
     return NextResponse.json({ error: "Too many requests, please try again shortly" }, { status: 429 });
   }
+
+  const auth = await requireAdmin(STAFF_CHECK_IN_ROLES);
+  if (auth.response) return auth.response;
 
   try {
     const body = await request.json();

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { sendEmail, buildInvitationEmail, buildDefaultInvitationHtml } from "@/lib/email";
 import { buildRsvpUrl, uploadQRCodeAndGetUrl } from "@/lib/qr";
@@ -10,8 +10,9 @@ interface Params {
 }
 
 export async function POST(_: NextRequest, { params }: Params) {
-  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR"]);
+  const auth = await requireAdmin();
   if (auth.response) return auth.response;
+  const admin = auth.admin;
 
   const { id: eventId, invitationId } = await params;
 

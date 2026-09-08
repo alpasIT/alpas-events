@@ -3,6 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import type { AdminRole, AdminUser } from "@prisma/client";
 
+/** Roles allowed to run check-in / offline guest cache (excludes VIEWER). */
+export const STAFF_CHECK_IN_ROLES: AdminRole[] = [
+  "SUPER_ADMIN",
+  "EVENT_COORDINATOR",
+  "STAFF",
+];
+
 export async function getCurrentAdmin(): Promise<AdminUser | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

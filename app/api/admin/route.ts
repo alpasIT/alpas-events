@@ -1,26 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { adminUserSchema } from "@/lib/validations";
 
-async function requireSuperAdmin(user: { email?: string } | null) {
-  if (!user?.email) return null;
-  const admin = await prisma.adminUser.findUnique({ where: { email: user.email } });
-  if (!admin || admin.role !== "SUPER_ADMIN") return null;
-  return admin;
-}
+const SAFE_ADMIN_SELECT = {
+  id: true,
+  supabaseId: true,
+  name: true,
+  email: true,
+  role: true,
+  mfaEnabled: true,
+  createdAt: true,
+  updatedAt: true,
+  lastLogin: true,
+} as const;
 
 export async function GET() {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!await requireSuperAdmin(user)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireAdmin(["SUPER_ADMIN"]);
+    if (auth.response) return auth.response;
 
     const admins = await prisma.adminUser.findMany({
       orderBy: { createdAt: "desc" },
+      select: SAFE_ADMIN_SELECT,
     });
     return NextResponse.json(admins);
   } catch {
@@ -30,11 +33,8 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!await requireSuperAdmin(user)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireAdmin(["SUPER_ADMIN"]);
+    if (auth.response) return auth.response;
 
     const body = await request.json();
     const parsed = adminUserSchema.safeParse(body);
@@ -67,13 +67,14 @@ export async function POST(request: NextRequest) {
 
     // passwordHash is managed by Supabase Auth; store a sentinel value in Prisma
     const admin = await prisma.adminUser.create({
-      data: { 
+      data: {
         supabaseId: authData.user.id,
-        name, 
-        email, 
-        role, 
-        passwordHash: "supabase_auth" 
+        name,
+        email,
+        role,
+        passwordHash: "supabase_auth",
       },
+      select: SAFE_ADMIN_SELECT,
     });
 
     return NextResponse.json(admin, { status: 201 });

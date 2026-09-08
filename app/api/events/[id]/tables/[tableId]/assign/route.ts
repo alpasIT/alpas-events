@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 interface Params {
   params: Promise<{ id: string; tableId: string }>;
@@ -12,7 +12,7 @@ interface Params {
  * Pass tableId = "unassign" to remove guest from any table.
  */
 export async function POST(request: NextRequest, { params }: Params) {
-  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR", "STAFF"]);
+  const auth = await requireAdmin();
   if (auth.response) return auth.response;
 
   const { tableId } = await params;

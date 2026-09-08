@@ -35,7 +35,9 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Public routes that don't require auth (token/guest flows + cron keep-alive)
+  // Public routes that don't require a Supabase user session.
+  // /api/check-in is reachable here but the handler requires staff AdminUser.
+  // /api/cron is protected by CRON_SECRET in the route handler (no cookies).
   const publicRoutes = [
     "/login",
     "/forgot-password",

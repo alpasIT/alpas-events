@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin, STAFF_CHECK_IN_ROLES } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
 
 interface Params {
   params: Promise<{ id: string }>;
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
-  const auth = await requireAdmin(["SUPER_ADMIN", "EVENT_COORDINATOR", "STAFF"]);
+  const auth = await requireAdmin(STAFF_CHECK_IN_ROLES);
   if (auth.response) return auth.response;
+  const admin = auth.admin;
 
   const { id: eventId } = await params;
 

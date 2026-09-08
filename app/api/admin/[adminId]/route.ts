@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
@@ -8,12 +8,17 @@ interface Params {
   params: Promise<{ adminId: string }>;
 }
 
-async function requireSuperAdmin(user: { email?: string } | null) {
-  if (!user?.email) return null;
-  const admin = await prisma.adminUser.findUnique({ where: { email: user.email } });
-  if (!admin || admin.role !== "SUPER_ADMIN") return null;
-  return admin;
-}
+const SAFE_ADMIN_SELECT = {
+  id: true,
+  supabaseId: true,
+  name: true,
+  email: true,
+  role: true,
+  mfaEnabled: true,
+  createdAt: true,
+  updatedAt: true,
+  lastLogin: true,
+} as const;
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -23,11 +28,8 @@ const updateSchema = z.object({
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { adminId } = await params;
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!await requireSuperAdmin(user)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireAdmin(["SUPER_ADMIN"]);
+    if (auth.response) return auth.response;
 
     const body = await request.json();
     const parsed = updateSchema.safeParse(body);
@@ -38,6 +40,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const admin = await prisma.adminUser.update({
       where: { id: adminId },
       data: parsed.data,
+      select: SAFE_ADMIN_SELECT,
     });
 
     return NextResponse.json(admin);
@@ -49,17 +52,15 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 export async function DELETE(_: NextRequest, { params }: Params) {
   const { adminId } = await params;
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!await requireSuperAdmin(user)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireAdmin(["SUPER_ADMIN"]);
+    if (auth.response) return auth.response;
+    const caller = auth.admin;
 
     const target = await prisma.adminUser.findUnique({ where: { id: adminId } });
     if (!target) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     // Prevent self-deletion
-    if (target.email === user!.email) {
+    if (target.email === caller.email) {
       return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
     }
 
@@ -72,10 +73,14 @@ export async function DELETE(_: NextRequest, { params }: Params) {
         auth: { autoRefreshToken: false, persistSession: false },
       });
 
-      const { data: authUsers } = await adminSupabase.auth.admin.listUsers();
-      const authUser = authUsers?.users.find((u) => u.email === target.email);
-      if (authUser) {
-        await adminSupabase.auth.admin.deleteUser(authUser.id);
+      if (target.supabaseId) {
+        await adminSupabase.auth.admin.deleteUser(target.supabaseId);
+      } else {
+        const { data: authUsers } = await adminSupabase.auth.admin.listUsers();
+        const authUser = authUsers?.users.find((u) => u.email === target.email);
+        if (authUser) {
+          await adminSupabase.auth.admin.deleteUser(authUser.id);
+        }
       }
     }
 
