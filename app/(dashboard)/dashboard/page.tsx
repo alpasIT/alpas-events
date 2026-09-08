@@ -2,35 +2,54 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Users, CheckSquare, Mail, TrendingUp, CalendarDays, Plus } from "lucide-react";
-import { StatsCard } from "@/components/stats-card";
+import { CalendarDays, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { formatDate, formatTimeAgo, getRsvpStatusColor } from "@/lib/utils";
+import { formatDate, formatTimeAgo } from "@/lib/utils";
+
+type EventStats = {
+  total: number;
+  accepted: number;
+  declined: number;
+  checkedIn: number;
+};
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const events = await prisma.event.findMany({
     orderBy: { date: "desc" },
+    take: 10,
     include: {
       _count: {
         select: {
           guests: true,
-          invitations: true,
         },
       },
     },
   });
 
-  // Aggregate stats across all events
-  const [totalGuests, rsvpCounts, attendanceCounts, recentActivity] = await Promise.all([
-    prisma.guest.count(),
-    prisma.guest.groupBy({ by: ["rsvpStatus"], _count: true }),
-    prisma.guest.groupBy({ by: ["attendanceStatus"], _count: true }),
+  const eventIds = events.map((event) => event.id);
+
+  const [rsvpCounts, attendanceCounts, recentActivity] = await Promise.all([
+    eventIds.length
+      ? prisma.guest.groupBy({
+          by: ["eventId", "rsvpStatus"],
+          where: { eventId: { in: eventIds } },
+          _count: true,
+        })
+      : Promise.resolve([]),
+    eventIds.length
+      ? prisma.guest.groupBy({
+          by: ["eventId", "attendanceStatus"],
+          where: { eventId: { in: eventIds } },
+          _count: true,
+        })
+      : Promise.resolve([]),
     prisma.activityLog.findMany({
       take: 10,
       orderBy: { createdAt: "desc" },
@@ -41,9 +60,31 @@ export default async function DashboardPage() {
     }),
   ]);
 
-  const accepted = rsvpCounts.find((r) => r.rsvpStatus === "ACCEPTED")?._count ?? 0;
-  const declined = rsvpCounts.find((r) => r.rsvpStatus === "DECLINED")?._count ?? 0;
-  const checkedIn = attendanceCounts.find((a) => a.attendanceStatus === "CONFIRMED_PRESENT")?._count ?? 0;
+  const statsByEvent = new Map<string, EventStats>();
+
+  for (const event of events) {
+    statsByEvent.set(event.id, {
+      total: event._count.guests,
+      accepted: 0,
+      declined: 0,
+      checkedIn: 0,
+    });
+  }
+
+  for (const row of rsvpCounts) {
+    const stats = statsByEvent.get(row.eventId);
+    if (!stats) continue;
+    if (row.rsvpStatus === "ACCEPTED") stats.accepted = row._count;
+    if (row.rsvpStatus === "DECLINED") stats.declined = row._count;
+  }
+
+  for (const row of attendanceCounts) {
+    const stats = statsByEvent.get(row.eventId);
+    if (!stats) continue;
+    if (row.attendanceStatus === "CONFIRMED_PRESENT") {
+      stats.checkedIn = row._count;
+    }
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -58,14 +99,6 @@ export default async function DashboardPage() {
             New Event
           </Link>
         </Button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard title="Total Guests" value={totalGuests} icon={Users} iconColor="text-blue-600" />
-        <StatsCard title="RSVP Accepted" value={accepted} icon={TrendingUp} iconColor="text-green-600" />
-        <StatsCard title="RSVP Declined" value={declined} icon={Mail} iconColor="text-red-600" />
-        <StatsCard title="Checked In" value={checkedIn} icon={CheckSquare} iconColor="text-purple-600" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -87,22 +120,47 @@ export default async function DashboardPage() {
                 </Button>
               </div>
             ) : (
-              events.slice(0, 5).map((event) => (
-                <Link
-                  key={event.id}
-                  href={`/events/${event.id}`}
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent transition-colors"
-                >
-                  <div>
-                    <p className="font-medium text-sm">{event.name}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(event.date)} · {event.venue}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold">{event._count.guests}</p>
-                    <p className="text-xs text-muted-foreground">guests</p>
-                  </div>
-                </Link>
-              ))
+              events.map((event) => {
+                const stats = statsByEvent.get(event.id) ?? {
+                  total: 0,
+                  accepted: 0,
+                  declined: 0,
+                  checkedIn: 0,
+                };
+
+                return (
+                  <Link
+                    key={event.id}
+                    href={`/events/${event.id}`}
+                    className="block p-3 rounded-lg border hover:bg-accent transition-colors"
+                  >
+                    <div>
+                      <p className="font-medium text-sm">{event.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(event.date)} · {event.venue}
+                      </p>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Total guests</p>
+                        <p className="text-sm font-semibold">{stats.total}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">RSVP accepted</p>
+                        <p className="text-sm font-semibold text-green-600">{stats.accepted}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">RSVP declined</p>
+                        <p className="text-sm font-semibold text-red-600">{stats.declined}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Checked in</p>
+                        <p className="text-sm font-semibold text-purple-600">{stats.checkedIn}</p>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })
             )}
           </CardContent>
         </Card>
@@ -124,7 +182,9 @@ export default async function DashboardPage() {
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-xs text-muted-foreground">{log.event.name}</span>
                       <span className="text-xs text-muted-foreground">·</span>
-                      <span className="text-xs text-muted-foreground">{formatTimeAgo(log.createdAt)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatTimeAgo(log.createdAt)}
+                      </span>
                     </div>
                   </div>
                 </div>
